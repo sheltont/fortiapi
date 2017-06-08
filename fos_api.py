@@ -1,16 +1,10 @@
 #!/usr/bin/env python
-import requests, sys
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.poolmanager import PoolManager
-import ssl
+import sys
 from pprint import pprint
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-class MyAdapter(HTTPAdapter):
-    def init_poolmanager(self, connections, maxsize, block=False):
-        self.poolmanager = PoolManager(num_pools=connections,
-                                       maxsize=maxsize,
-                                       block=block,
-                                       ssl_version=ssl.PROTOCOL_TLSv1)
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 # API class to access FOS REST API
@@ -237,7 +231,7 @@ if __name__ == '__main__':
     vdom = sys.argv[2]
 
     # Login into the FGT
-    fgt = FGT(ip, vdom)
+    fgt = FGT(ip)
 
     fgt.login('readonly','Password01!')
 
