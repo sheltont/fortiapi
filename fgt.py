@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import logging
+import logging,sys
 from pprint import pprint
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -33,10 +33,17 @@ class FGT(object):
     Script will start a session by login into the FGT
     All subsequent calls will use the session's cookies and CSRF token
     """
-    def __init__(self, url_prefix):
+    def __init__(self, url_prefix, verbose=True):
         self.url_prefix = url_prefix
         self.session = requests.session()  # use single session for all requests
         self.logger = logging.getLogger('FGT')
+        ch = logging.StreamHandler(sys.stderr)
+        ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(ch)
+        if verbose:
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.ERROR)
 
     def update_csrf(self):
         # Retrieve server csrf and update session's headers
