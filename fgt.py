@@ -16,9 +16,13 @@ class AuthenticationError(Exception):
         return repr(self.value)
 
 
-class ResponseError(Exception):
-    def __init__(self, value):
+class BadResponse(Exception):
+    def __init__(self, value, body=''):
         self.value = value
+        self.body = body
+
+    def get_body(self):
+        return self.body
 
     def __str__(self):
         return repr(self.value)
@@ -33,9 +37,10 @@ class FGT(object):
     Script will start a session by login into the FGT
     All subsequent calls will use the session's cookies and CSRF token
     """
-    def __init__(self, url_prefix, verbose=True):
+    def __init__(self, url_prefix, vdom, verbose=True):
         self.url_prefix = url_prefix
         self.session = requests.session()  # use single session for all requests
+        self.vdom = vdom
         self.logger = logging.getLogger('FGT')
         ch = logging.StreamHandler(sys.stderr)
         ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -71,32 +76,32 @@ class FGT(object):
 
     def get(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
-        res = self.session.get(url, params=params, data=data)
+        res = self.session.get(url, params=self.append_vdom_params(params), data=data)
         self.update_csrf()  # update session's csrf
         return self.check_response(res, verbose)
 
     def post(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
-        res = self.session.post(url, params=params, data=data)
+        res = self.session.post(url, params=self.append_vdom_params(params), data=data)
         self.update_csrf() # update session's csrf
         return self.check_response(res, verbose)
 
     def put(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
-        res = self.session.put(url, params=params, data=data)
+        res = self.session.put(url, params=self.append_vdom_params(params), data=data)
         self.update_csrf() # update session's csrf
         return self.check_response(res, verbose)
 
     def delete(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
-        res = self.session.delete(url, params=params, data=data)
+        res = self.session.delete(url, params=self.append_vdom_params(params), data=data)
         self.update_csrf()  # update session's csrf
         return self.check_response(res, verbose)
 
     def get_v1(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
         # Pass 'request' or 'json' data as parameters for V1
-        payload = params
+        payload = self.append_vdom_params(params)
         if params:
             if 'request' in params:
                 payload = 'request' + '=' + params['request']
@@ -111,7 +116,7 @@ class FGT(object):
     def post_v1(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
         # Pass 'request' or 'json' data as parameters for V1
-        payload = params
+        payload = self.append_vdom_params(params)
         if params:
             if 'request' in params:
                 payload = 'request' + '=' + params['request']
@@ -126,7 +131,7 @@ class FGT(object):
     def put_v1(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
         # Pass 'request' or 'json' data as parameters for V1
-        payload = params
+        payload = self.append_vdom_params(params)
         if params:
             if 'request' in params:
                 payload = 'request' + '=' + params['request']
@@ -141,7 +146,7 @@ class FGT(object):
     def delete_v1(self, url_postfix, params=None, data=None, verbose=True):
         url = self.url_prefix + url_postfix
         # Pass 'request' or 'json' data as parameters for V1
-        payload = params
+        payload = self.append_vdom_params(params)
         if params:
             if 'request' in params:
                 payload = 'request' + '=' + params['request']
@@ -152,6 +157,12 @@ class FGT(object):
         res = self.session.delete(url, params=payload, data=data)
         self.update_csrf()  # update session's csrf
         return self.check_response(res, verbose)
+
+    def append_vdom_params(self, params):
+        if params and type(params) is dict:
+            if not ('vdom' in params):
+                params['vdom'] = self.vdom
+        return params
 
     def check_response(self, response, verbose=True):
 
@@ -164,26 +175,28 @@ class FGT(object):
                 # Retrieve json data
                 res = response.json()
             except:
-                self.logger.error('Fail invalid JSON response')
+                error = 'Invalid JSON response'
+                self.logger.error(error)
                 self.logger.info(response.text)
-                return False
+                raise BadResponse(error, response.text)
             else:
                 # Check if json data is empty
                 if not res:
-                    self.logger.error('JSON data is empty')
-                    return False
+                    error = 'JSON data is emtpy'
+                    self.logger.error(error)
+                    raise BadResponse(error)
 
                 # Check status
                 if 'status' in res:
                     if res['status'] != 'success':
                         self.logger.error('JSON error {0}\n{1}'.format(res['error'], res))
-                        return False
+                        raise BadResponse('Error response', res.text)
 
                 # Check http_status if any
                 if 'http_status' in res:
                     if res['http_status'] != 200:
                         self.logger.error('JSON error {0}\n{1}'.format(res['error'], res))
-                        return False
+                        raise BadResponse('Error http_status', res.text)
 
                 # Check http method
                 if 'http_method' in res:
@@ -191,13 +204,13 @@ class FGT(object):
                         self.logger.error('Incorrect METHOD request {0},\
                                   response {1}'.format(response.request.method,
                                                        res['http_method']))
-                        return False
+                        raise BadResponse('Unmatched http_method', res.text)
 
                 # Check results
                 if 'results' in res:
                     if not res['results']:
                         self.logger.error('Results is empty')
-                        return False
+                        raise BadResponse('Results is empty', res.text)
 
                 # Check vdom
 
