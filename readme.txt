@@ -11,6 +11,7 @@ Fgt.py, fos_api.py在厂家提供的例子基础上修改。fgt.py就是实现�
 
 FortiGate REST API command line wrapper
 
+
 optional arguments:
   -h, --help     show this help message and exit
   -U USERNAME    Fortigate username
