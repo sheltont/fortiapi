@@ -65,6 +65,8 @@ def parse_command_parameters(data):
     params = dict([pair.split('=', 1) for pair in pairs])
     return params
 
+def normalize_path(objpath):
+    return '/api/v2/cmdb/' + objpath
 
 def response_auth_error():
     response_to_stdout({'status': ERROR, 'message': 'FGT authentication error'})
@@ -111,7 +113,7 @@ def main():
     args = parser.parse_args()
 
     # 判断action参数是否在支持的范围中
-    action = args.action.tolower()
+    action = args.action.lower()
     if not is_valid_action(action):
         response_bad_action()
         return 1
@@ -131,9 +133,10 @@ def main():
 
     try:
         # 使用指定的用户名&密码登录
+
         fgt.login(args.username, args.password)
         # 根据action调用对应的命令函数. vdom作为params输入
-        result = cmd_to_func[action](fgt, args.object, params, data)
+        result = cmd_to_func[action](fgt, normalize_path(args.object), params, data)
         # 将结果写到stdout中
         response_to_stdout(result)
         return 0
