@@ -1,0 +1,1 @@
+python ./fos_api.py -U readonly -P Password01! -H 172.16.28.1 -X list -O 'firewall/policy'

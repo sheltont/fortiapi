@@ -7,8 +7,8 @@ from fgt import FGT
 from fgt import AuthenticationError
 
 
-ERROR = 'Error'
-SUCCESS = 'Success'
+ERROR = 'error'
+SUCCESS = 'success'
 
 
 def get_object(fgt, objpath, params, data):
@@ -67,25 +67,23 @@ def parse_command_parameters(data):
 
 
 def response_auth_error():
-    response_to_stdout(ERROR, 'FGT authentication error')
+    response_to_stdout({'status': ERROR, 'message': 'FGT authentication error'})
 
 
 def response_bad_data():
-    response_to_stdout(ERROR, 'Invalid json parameters from STDIN')
+    response_to_stdout({'status': ERROR, 'message': 'Invalid json parameters from STDIN'})
 
 
 def response_bad_action():
-    response_to_stdout(ERROR, 'Unsupported command action')
+    response_to_stdout({'status': ERROR, 'message': 'Unsupported command action'})
 
 
 def response_other_errors(message):
-    status = ERROR
-    response_to_stdout(status, message)
+    response_to_stdout({'status': ERROR, 'message': message})
 
 
-def response_to_stdout(status=SUCCESS, message=None, data=None):
-    res = {'status': status, 'message': message, 'data': data}
-    json.dump(res, sys.stdout, sort_keys=False, indent=4)
+def response_to_stdout(data):
+    json.dump(data, sys.stdout, sort_keys=False, indent=4)
 
 
 def main():
